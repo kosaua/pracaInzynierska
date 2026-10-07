@@ -1,9 +1,3 @@
-"""
-Tłumacz mowy PL <-> TR.   Uruchomienie:  python main.py
-
-Przy pierwszym starcie sam dociąga biblioteki, FFmpeg i modele.
-Modele i ich precyzję zmieniasz w config.py.
-"""
 
 import glob
 import logging

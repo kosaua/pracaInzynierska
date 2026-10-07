@@ -149,7 +149,6 @@ def translate(text, engine, src, tgt):
 
 # --- rozgrzewka --------------------------------------------------------------
 
-# (mówi, język źródłowy, język docelowy, slot ASR, slot tłumaczenia, zdanie testowe)
 WARMUP = [
     ("PL", POLISH, TURKISH, "asr_pl", "txt_pl_tr", "Dzień dobry, jak się masz?"),
     ("TR", TURKISH, POLISH, "asr_tr", "txt_tr_pl", "Merhaba, nasılsın?"),

@@ -1,5 +1,3 @@
-"""Logi programu. Każde uruchomienie dostaje własny plik w folderze logs/."""
-
 import csv
 import logging
 import os
