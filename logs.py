@@ -9,7 +9,7 @@ import time
 from datetime import datetime
 from importlib import metadata
 
-from config import LOGS_DIR
+from config import LOGS_DIR, VERBOSE
 
 log = logging.getLogger("tlumacz")
 
@@ -37,6 +37,11 @@ def init():
                                            datefmt="%Y-%m-%d %H:%M:%S"))
     log.setLevel(logging.INFO)
     log.addHandler(handler)
+    if VERBOSE:
+        console = logging.StreamHandler(sys.stdout)
+        console.setFormatter(logging.Formatter("%(asctime)s | %(levelname)-7s | %(message)s",
+                                                datefmt="%H:%M:%S"))
+        log.addHandler(console)
     log.propagate = False  # nie mieszamy z konsolą
 
     log.info("Uruchomienie: %s", " ".join([sys.executable, *sys.argv]))

@@ -3,6 +3,7 @@ import queue
 import sys
 import threading
 import traceback
+from config import VERBOSE
 
 
 class SetupError(Exception):
@@ -55,11 +56,13 @@ class Checklist:
     def note(self, key, text):
         """Etap trwa - pokazujemy, co się teraz dzieje."""
         self._send("note", key, text)
+        if VERBOSE:
+            print(f"[..] {self.titles[key]}: {text}")
 
     def done(self, key, text=None):
         """Etap skończony - ptaszek i (opcjonalnie) nowy opis."""
         self._send("done", key, text)
-        if not self.root:
+        if not self.root or VERBOSE:
             print(f"[ok] {self.titles[key]}" + (f" - {text}" if text else ""))
 
     def close(self):

@@ -12,7 +12,7 @@ import tarfile
 import urllib.request
 import zipfile
 
-from config import BIN_DIR, MODELS, MODELS_DIR
+from config import BIN_DIR, MODELS, MODELS_DIR, VERBOSE
 from logs import log, timed
 from startup_window import SetupError
 
@@ -60,13 +60,16 @@ def _installed(module):
 
 
 def _pip(*args):
+    if VERBOSE:
+        args = [a for a in args if a != "-q"]  # pokazujemy pełny postęp pip
     cmd = [sys.executable, "-m", "pip", *args]
     log.info("Polecenie: %s", " ".join(cmd))
     with timed("   pip zakończony"):
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=not VERBOSE, text=True)
     if result.returncode != 0:
-        log.error("pip zwrócił kod %s:\n%s", result.returncode, result.stderr[-1500:])
-        raise SetupError("Błąd instalacji", result.stderr[-1500:])
+        details = (result.stderr or "")[-1500:] or "Szczegóły w konsoli."
+        log.error("pip zwrócił kod %s:\n%s", result.returncode, details)
+        raise SetupError("Błąd instalacji", details)
 
 
 def _torch_sees_gpu():
