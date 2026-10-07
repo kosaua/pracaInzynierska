@@ -7,11 +7,11 @@ import time
 import warnings
 
 # wyciszamy konsolę, zanim cokolwiek się zaimportuje
-os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
-os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
-os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
-os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
-os.environ.setdefault("GRADIO_ANALYTICS_ENABLED", "False")
+# os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+# os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+# os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
+# os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+# os.environ.setdefault("GRADIO_ANALYTICS_ENABLED", "False")
 warnings.filterwarnings("ignore")
 for noisy in ("httpx", "faster_whisper", "urllib3"):
     logging.getLogger(noisy).setLevel(logging.ERROR)
