@@ -11,17 +11,17 @@ import time
 from datetime import datetime
 from importlib import metadata
 
-from config import CONVERSATIONS_FILE, LOGS_DIR
+from config import LOGS_DIR
 
 log = logging.getLogger("tlumacz")
 
-session = ""  # nazwa pliku logu bieżącego uruchomienia, łączy wiersze CSV z logiem
+conversation_file = ""  # logs/<data_godzina>.csv, ta sama nazwa co plik .log tego uruchomienia
 csv_lock = threading.Lock()  # Gradio obsługuje żądania w wątkach
 
-CSV_COLUMNS = ["data", "sesja", "nr", "mowi", "jezyk_zrodlowy", "jezyk_docelowy",
+CSV_COLUMNS = ["data", "nr", "mowi", "jezyk_zrodlowy", "jezyk_docelowy",
                "tekst_oryginalny", "tlumaczenie",
-               "model_asr", "precyzja_asr", "czas_asr_s",
-               "model_tlumaczenia", "precyzja_tlumaczenia", "czas_tlumaczenia_s", "czas_razem_s"]
+               "model_asr", "kwantyzacja_asr", "czas_asr_s",
+               "model_tlumaczenia", "kwantyzacja_tlumaczenia", "czas_tlumaczenia_s", "czas_razem_s"]
 
 LIBRARIES = ["torch", "torchaudio", "transformers", "ctranslate2",
              "faster-whisper", "librosa", "gradio"]
@@ -29,12 +29,12 @@ LIBRARIES = ["torch", "torchaudio", "transformers", "ctranslate2",
 
 def init():
     """Wywołać raz, na samym początku programu."""
-    global session
+    global conversation_file
     os.makedirs(LOGS_DIR, exist_ok=True)
-    session = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    name = session + ".log"
+    name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    conversation_file = os.path.join(LOGS_DIR, name + ".csv")
 
-    handler = logging.FileHandler(os.path.join(LOGS_DIR, name), encoding="utf-8")
+    handler = logging.FileHandler(os.path.join(LOGS_DIR, name + ".log"), encoding="utf-8")
     handler.setFormatter(logging.Formatter("%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s",
                                            datefmt="%Y-%m-%d %H:%M:%S"))
     log.setLevel(logging.INFO)
@@ -79,10 +79,10 @@ def log_hardware(has_gpu, cuda):
 
 def save_turn(number, speaker, src, tgt, original, translation,
               asr, asr_seconds, translator, translator_seconds):
-    """Dopisuje jedną wypowiedź (tylko tekst, bez audio) do logs/rozmowy.csv.
-    Plik jest wspólny dla wszystkich uruchomień, kolumna 'sesja' mówi, z którego pochodzi wiersz."""
+    """Dopisuje jedną wypowiedź (tylko tekst, bez audio) do pliku CSV tego uruchomienia.
+    Plik powstaje przy pierwszej wypowiedzi, więc puste sesje nie zostawiają pustych CSV-ek."""
     row = [
-        datetime.now().isoformat(sep=" ", timespec="seconds"), session, number,
+        datetime.now().isoformat(sep=" ", timespec="seconds"), number,
         speaker.upper(), src.whisper, tgt.whisper,
         original, translation,
         asr.name, asr.precision, round(asr_seconds, 2),
@@ -91,15 +91,15 @@ def save_turn(number, speaker, src, tgt, original, translation,
     ]
     try:
         with csv_lock:
-            is_new = not os.path.exists(CONVERSATIONS_FILE) or os.path.getsize(CONVERSATIONS_FILE) == 0
+            is_new = not os.path.exists(conversation_file)
             # utf-8-sig, żeby Excel poprawnie pokazał polskie i tureckie znaki
-            with open(CONVERSATIONS_FILE, "a", newline="", encoding="utf-8-sig") as f:
+            with open(conversation_file, "a", newline="", encoding="utf-8-sig") as f:
                 writer = csv.writer(f)
                 if is_new:
                     writer.writerow(CSV_COLUMNS)
                 writer.writerow(row)
     except Exception:
-        log.exception("Nie udało się zapisać wypowiedzi do %s", CONVERSATIONS_FILE)
+        log.exception("Nie udało się zapisać wypowiedzi do %s", conversation_file)
 
 
 class timed:

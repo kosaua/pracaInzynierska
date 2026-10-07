@@ -58,6 +58,7 @@ STEPS = [
     ("ffmpeg", "FFmpeg",       "Obsługa nagrań audio"),
     ("models", "Modele",       "Sprawdzam, czy modele są na dysku"),
     ("load",   "Wczytywanie",  "Ładowanie modeli do pamięci"),
+    # ("warmup", "Rozgrzewka",   "Pierwsze przebiegi modeli dla polskiego i tureckiego"),
     ("ui",     "Interfejs",    "Uruchamianie aplikacji w przeglądarce"),
 ]
 checklist = Checklist(STEPS)
@@ -69,34 +70,39 @@ def start():
 
     start_time = time.perf_counter()
 
-    with timed("Etap 1/6 sprzęt"):
+    with timed("Etap 1/7 sprzęt"):
         has_gpu, cuda = setup_env.detect_gpu()
     profile = "gpu" if has_gpu else "cpu"
     log.info("Wybrany profil: %s", profile.upper())
     checklist.done("hw", f"Karta NVIDIA (CUDA {cuda[0]}.{cuda[1]})" if cuda
                    else "Karta NVIDIA" if has_gpu else "Brak karty NVIDIA - tryb CPU")
 
-    with timed("Etap 2/6 biblioteki"):
+    with timed("Etap 2/7 biblioteki"):
         setup_env.ensure_packages(has_gpu, cuda, lambda text: note("libs", text))
     logs.log_hardware(has_gpu, cuda)
     checklist.done("libs", "Wszystko zainstalowane")
 
-    with timed("Etap 3/6 FFmpeg"):
+    with timed("Etap 3/7 FFmpeg"):
         setup_env.ensure_ffmpeg(lambda text: note("ffmpeg", text))
     checklist.done("ffmpeg", "Gotowy")
 
     model_names = sorted({name for name, _ in PROFILES[profile].values()})
-    with timed("Etap 4/6 sprawdzenie plików modeli"):
+    with timed("Etap 4/7 sprawdzenie plików modeli"):
         setup_env.ensure_models(model_names, lambda text: note("models", text))
     checklist.done("models", ", ".join(model_names))
 
     import engines  # dopiero teraz, bo ciągnie torcha
-    with timed("Etap 5/6 wczytanie modeli"):
+    with timed("Etap 5/7 wczytanie modeli"):
         engines.load_all(profile, lambda text: note("load", text))
     checklist.done("load", f"Profil {profile.upper()}")
 
+    # note("warmup", "Rozgrzewam modele: polski i turecki")
+    # with timed("Etap 6/7 rozgrzewka"):
+    #     engines.warmup()
+    # checklist.done("warmup", "PL i TR gotowe")
+
     import ui
-    with timed("Etap 6/6 interfejs"):
+    with timed("Etap 7/7 interfejs"):
         demo = ui.build_ui()
         demo.launch(
             server_name="127.0.0.1",
