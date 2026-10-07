@@ -39,4 +39,5 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BIN_DIR = os.path.join(BASE_DIR, "bin")
 MODELS_DIR = os.path.join(BASE_DIR, "modele_offline")
 LOGS_DIR = os.path.join(BASE_DIR, "logs")
-CONVERSATIONS_FILE = os.path.join(LOGS_DIR, "rozmowy.csv")
+
+VERBOSE = os.environ.get("TLUMACZ_VERBOSE", "1") != "0"

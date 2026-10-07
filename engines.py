@@ -6,11 +6,12 @@ import gpu_spill
 gpu_spill.enable()  # Linux: przelew VRAM -> RAM (na Windowsie robi to sterownik)
 
 import ctranslate2
+import numpy as np
 import librosa
 from faster_whisper import WhisperModel
 from transformers import AutoModelForSeq2SeqLM, AutoProcessor, NllbTokenizerFast, SeamlessM4TModel
 
-from config import MODELS, MODELS_DIR, PROFILES
+from config import MODELS, MODELS_DIR, POLISH, PROFILES, TURKISH
 from logs import log, timed
 
 
@@ -20,7 +21,7 @@ class Engine:
     model: Any
     processor: Any = None
     name: str = ""       # np. "NLLB-600M", do logów
-    precision: str = ""  # precyzja, w jakiej model faktycznie działa
+    precision: str = ""  # kwantyzacja, w jakiej model faktycznie działa
 
 engines = {}
 
@@ -52,7 +53,7 @@ def _load(name, precision, device):
 
     if info.kind == "whisper":
         compute_type = _whisper_compute_type(precision, device)
-        log.info("Ładuję %s: urządzenie=%s, precyzja z configu=%s, faktyczna=%s",
+        log.info("Ładuję %s: urządzenie=%s, kwantyzacja z configu=%s, faktyczna=%s",
                  name, device, precision, compute_type)
         with timed(f"Wczytano {name}"):
             model = WhisperModel(path, device=device, local_files_only=True,
@@ -60,7 +61,7 @@ def _load(name, precision, device):
         return Engine("whisper", model, name=name, precision=compute_type)
 
     used = _torch_precision(precision, device)
-    log.info("Ładuję %s: urządzenie=%s, precyzja z configu=%s, faktyczna=%s",
+    log.info("Ładuję %s: urządzenie=%s, kwantyzacja z configu=%s, faktyczna=%s",
              name, device, precision, used)
     dtype = torch.float16 if used == "float16" else torch.float32
 
@@ -112,7 +113,10 @@ def transcribe(audio_path, engine, lang):
     # audio wczytujemy sami (librosa), dzięki temu faster-whisper nie dekoduje pliku
     # przez bibliotekę av, która potrafi być niezgodna wersją
     audio, _ = librosa.load(audio_path, sr=16000)
+    return _recognize(audio, engine, lang)
 
+
+def _recognize(audio, engine, lang):
     if engine.kind == "whisper":
         segments, _ = engine.model.transcribe(audio, language=lang.whisper, beam_size=5)
         return " ".join(s.text for s in segments).strip()
@@ -141,3 +145,28 @@ def translate(text, engine, src, tgt):
     with torch.inference_mode():
         out = engine.model.generate(**inputs, tgt_lang=tgt.seamless, generate_speech=False)
     return engine.processor.batch_decode(out[0], skip_special_tokens=True)[0].strip()
+
+
+# --- rozgrzewka --------------------------------------------------------------
+
+WARMUP = [
+    ("PL", POLISH, TURKISH, "asr_pl", "txt_pl_tr", "Dzień dobry, jak się masz?"),
+    ("TR", TURKISH, POLISH, "asr_tr", "txt_tr_pl", "Merhaba, nasılsın?"),
+]
+
+
+def warmup():
+    """Pierwszy przebieg modelu jest wolny (kernele CUDA, alokacje), więc robimy go
+    na sucho przed startem interfejsu - dla obu kierunków, żeby pierwsza prawdziwa
+    rozmowa nie czekała. ASR dostaje 2 s ciszy, tłumaczenie krótkie zdanie."""
+    silence = np.zeros(2 * 16000, dtype=np.float32)
+
+    for speaker, src, tgt, asr_slot, text_slot, sentence in WARMUP:
+        try:
+            with timed(f"Rozgrzewka {speaker}: ASR ({engines[asr_slot].name})"):
+                _recognize(silence, engines[asr_slot], src)
+            with timed(f"Rozgrzewka {speaker}: tłumaczenie ({engines[text_slot].name})"):
+                translate(sentence, engines[text_slot], src, tgt)
+        except Exception:
+            # nieudana rozgrzewka nie powinna blokować aplikacji
+            log.exception("Rozgrzewka %s nie powiodła się", speaker)
