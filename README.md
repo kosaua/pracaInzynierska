@@ -5,6 +5,7 @@
 
 ### Uruchomienie
 - Windows: uruchom plik run.bat<br>
-- Linux: uruchom plik run.sh
+- Linux: `chmod +x run.sh`
+
 
 Po uruchomieniu tworzy się wirtualne środowisko venv, w którym znajdować się będą biblioteki niezbędne do działania aplikacji
